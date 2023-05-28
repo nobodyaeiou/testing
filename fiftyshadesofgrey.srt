@@ -1,0 +1,97 @@
+#include <iostream>
+#include <queue>
+#include <ctime>
+#include <omp.h>
+
+using namespace std;
+
+class TreeNode {
+public:
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x) {
+        val = x;
+        left = nullptr;
+        right = nullptr;
+    }
+};
+
+void sequentialBFS(TreeNode* root) {
+    queue<TreeNode*> q;
+    q.push(root);
+    while (!q.empty()) {
+        TreeNode* node = q.front();
+        cout << node->val << " ";
+        q.pop();
+        if (node->left)
+            q.push(node->left);
+        if (node->right)
+            q.push(node->right);
+    }
+}
+
+void parallelBFS(TreeNode* root) {
+    queue<TreeNode*> q;
+    q.push(root);
+    while (!q.empty()) {
+        int qs = q.size();
+        #pragma omp parallel for
+        for (int i = 0; i < qs; ++i) {
+            TreeNode* node;
+            #pragma omp critical
+            {
+                node = q.front();
+                q.pop();
+            }
+            cout << node->val << " ";
+            #pragma omp critical
+            {
+                if (node->left)
+                    q.push(node->left);
+                if (node->right)
+                    q.push(node->right);
+            }
+        }
+    }
+}
+
+int main() {
+    // Construct Tree
+    TreeNode* tree = new TreeNode(1);
+    tree->left = new TreeNode(2);
+    tree->right = new TreeNode(3);
+    tree->left->left = new TreeNode(4);
+    tree->left->right = new TreeNode(5);
+    tree->right->left = new TreeNode(6);
+    tree->right->right = new TreeNode(7);
+    // tree->right->right->left = new TreeNode(9);
+
+
+    /*
+    Our Tree Looks like this:
+                1
+            2       3
+        4     5   6    7
+    */
+
+    cout << "Sequential BFS: ";
+    clock_t seqStartTime = clock();
+    sequentialBFS(tree);
+    clock_t seqEndTime = clock();
+    // double seqDuration = static_cast<double>(seqEndTime - seqStartTime) / (CLOCKS_PER_SEC / 1000000.0);
+    double seqDuration = (seqEndTime - seqStartTime) *1000000.0 / (CLOCKS_PER_SEC);
+
+    cout << "\nSequential BFS Time: " << seqDuration << " microseconds" << endl;
+
+    cout << "Parallel BFS: ";
+    clock_t parStartTime = clock();
+    parallelBFS(tree);
+    clock_t parEndTime = clock();
+    // double parDuration = static_cast<double>(parEndTime - parStartTime) / (CLOCKS_PER_SEC / 1000000.0);
+    double parDuration = (parEndTime - parStartTime) *1000000.0 / (CLOCKS_PER_SEC);
+
+    cout << "\nParallel BFS Time: " << parDuration << " microseconds" << endl;
+
+    return 0;
+}

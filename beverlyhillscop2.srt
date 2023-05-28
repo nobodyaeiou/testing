@@ -1,0 +1,81 @@
+X = df['review'][:10000]
+y = df['sentiment'][:10000]
+
+from sklearn.preprocessing import LabelEncoder
+le = LabelEncoder()
+y = le.fit_transform(y)
+
+le.classes_ # [0, 1]
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
+
+y_train = y_train.astype('float32').reshape((-1, 1))
+y_test = y_test.astype('float32').reshape((-1, 1))
+
+from tensorflow.keras.layers import TextVectorization
+from tensorflow.keras.layers import Conv1D, Flatten, MaxPooling1D, Dense, LSTM, Embedding, Input
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.regularizers import l2
+
+# max_features = 30000 # Number of words in our vocabulary
+max_len = 512 # length of the output vectors
+
+vectorize_layer = TextVectorization(output_mode = 'int', output_sequence_length = max_len)
+
+%%time
+vectorize_layer.adapt(X_train) 
+
+vocab_len = len(vectorize_layer.get_vocabulary())
+vocab_len
+
+model = Sequential()
+model.add(Input(shape=(1,), dtype = tf.string))
+model.add(vectorize_layer)
+model.add(Embedding(input_dim = vocab_len, output_dim = 256, input_length= max_len))
+model.add(Conv1D(32, 5, strides = 1,activation= 'relu', padding = 'same', kernel_regularizer = l2(0.0001)))
+model.add(Conv1D(16, 5, strides = 1,activation= 'relu', padding = 'same', kernel_regularizer = l2(0.0001)))
+model.add(MaxPooling1D(4, 1, padding = 'same'))
+model.add(tf.keras.layers.Bidirectional(LSTM(64, kernel_regularizer = l2(0.0001))))
+model.add(Dense(32, activation = 'relu', kernel_regularizer = l2(0.0001)))
+model.add(Dense(16, activation = 'relu', kernel_regularizer = l2(0.0001)))
+model.add(Flatten())
+model.add(Dense(1, activation = 'sigmoid'))
+
+optimizer = tf.keras.optimizers.Adam(learning_rate = 0.001)
+
+model.compile(optimizer= optimizer, loss = 'binary_crossentropy', metrics = ['accuracy'])
+model.summary()
+
+%%time
+hist = model.fit(X_train, y_train,
+          epochs= 6, validation_data = (X_test, y_test))
+
+plt.plot(hist.history['accuracy'])
+plt.plot(hist.history['val_accuracy'])
+plt.title('Model Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend(['train', 'val'])
+plt.show()
+
+plt.plot(hist.history['loss'])
+plt.plot(hist.history['val_loss'])
+plt.title('Model Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend(['train', 'val'])
+plt.show()
+
+pred = model.predict
+pred > 0.5
+
+def predict_sentiment(text, model):
+    text = [text]
+    pred = model.predict(text)
+    print(pred)
+    if pred > 0.5:
+        return "Positive"
+    else:
+        return "Negative"
+

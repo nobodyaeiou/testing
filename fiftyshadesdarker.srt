@@ -1,0 +1,59 @@
+#include <iostream>
+#include <ctime>
+#include <cstdlib>
+#include <omp.h>
+
+using namespace std;
+
+void sequentialBubbleSort(int arr[], int size) {
+    for (int i = 0; i < size - 1; ++i) {
+        for (int j = 0; j < size - i - 1; ++j) {
+            if (arr[j] > arr[j + 1]) {
+                swap(arr[j], arr[j + 1]);
+            }
+        }
+    }
+}
+
+void parallelBubbleSort(int arr[], int size) {
+    #pragma omp parallel
+    {
+        for (int i = 0; i < size - 1; ++i) {
+            #pragma omp for
+            for (int j = 0; j < size - i - 1; ++j) {
+                if (arr[j] > arr[j + 1]) {
+                    swap(arr[j], arr[j + 1]);
+                }
+            }
+        }
+    }
+}
+
+int main() {
+    const int SIZE = 10000;
+    int arr1[SIZE], arr2[SIZE];
+
+    // Initialize the arrays with random numbers
+    srand(static_cast<unsigned>(time(0)));
+    for (int i = 0; i < SIZE; ++i) {
+        arr1[i] = arr2[i] = rand() % 100;
+    }
+
+    // Sequential bubble sort
+    cout << "Sequential Bubble Sort:\n";
+    clock_t seqStart = clock();
+    sequentialBubbleSort(arr1, SIZE);
+    clock_t seqEnd = clock();
+    double seqTime = static_cast<double>(seqEnd - seqStart) / CLOCKS_PER_SEC;
+    cout << "Time taken: " << seqTime * 1e6 << " microseconds\n\n";
+
+    // Parallel bubble sort
+    cout << "Parallel Bubble Sort:\n";
+    clock_t parStart = clock();
+    parallelBubbleSort(arr2, SIZE);
+    clock_t parEnd = clock();
+    double parTime = static_cast<double>(parEnd - parStart) / CLOCKS_PER_SEC;
+    cout << "Time taken: " << parTime * 1e6 << " microseconds\n";
+
+    return 0;
+}
